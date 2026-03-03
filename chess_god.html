@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Chess Openings Simulator (Offline)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root {
+            --bg: #050710;
+            --panel: #0e1623;
+            --panel-light: #1a2435;
+            --accent: #4fe0c3;
+            --accent-soft: rgba(79, 224, 195, 0.12);
+            --text: #f5f7ff;
+            --muted: #9aa7c3;
+            --danger: #ff6b81;
+            --light-square: red;
+            --dark-square: brown;
+            --highlight: #ffd54f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at top, #101931, #050710 45%, #020308);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .app {
+            display: flex;
+            gap: 20px;
+            max-width: 1100px;
+            width: 100%;
+            background: linear-gradient(135deg, rgba(79, 224, 195, 0.05), rgba(18, 28, 46, 0.92));
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                flex-direction: column;
+            }
+        }
+
+        .board-panel {
+            flex: 0 0 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 500px) {
+            .board-panel {
+                flex: 1 1 auto;
+            }
+        }
+
+        .board-wrapper {
+            position: relative;
+            width: 380px;
+            max-width: 80vw;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.7);
+            background: #000;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%;
+            height: 100%;
+        }
+
+        .square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(28px, 4.2vw, 40px);
+            cursor: default;
+            user-select: none;
+            position: relative;
+            line-height: 1;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            transition: background 0.1s ease-out;
+        }
+
+        .square.light {
+            background: var(--light-square);
+        }
+
+        .square.dark {
+            background: var(--dark-square);
+        }
+
+        .square.highlight {
+            box-shadow: inset 0 0 0 3px var(--highlight);
+        }
+
+        .coord {
+            position: absolute;
+            font-size: 10px;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .coord-file {
+            bottom: 2px;
+            right: 3px;
+        }
+
+        .coord-rank {
+            top: 2px;
+            left: 3px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .control-panel {
+            flex: 1 1 auto;
+            background: rgba(4, 9, 20, 0.8);
+            border-radius: 14px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        select {
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 14px;
+            min-width: 200px;
+            outline: none;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent-soft);
+        }
+
+        .btn {
+            border: none;
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, var(--accent), #67f7ff);
+            color: #001015;
+            box-shadow: 0 8px 20px rgba(79, 224, 195, 0.4);
+            transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.08s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.03);
+            box-shadow: 0 10px 26px rgba(79, 224, 195, 0.55);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 5px 12px rgba(79, 224, 195, 0.35);
+        }
+
+        .btn-secondary {
+            background: var(--panel-light);
+            color: var(--text);
+            box-shadow: 0 0 0 transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #ff9a8b);
+            color: #2a0408;
+            box-shadow: 0 8px 20px rgba(255, 107, 129, 0.4);
+        }
+
+        .speed-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent);
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: radial-gradient(circle at top left, rgba(79, 224, 195, 0.16), transparent 70%);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+
+        .tag-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 8px rgba(79, 224, 195, 0.8);
+        }
+
+        .moves-panel {
+            flex: 1 1 auto;
+            background: rgba(8, 14, 30, 0.9);
+            border-radius: 10px;
+            padding: 10px 10px 6px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .moves-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .moves-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+        }
+
+        .moves-body {
+            margin-top: 6px;
+            padding: 8px;
+            border-radius: 8px;
+            background: radial-gradient(circle at top left, rgba(79, 224, 195, 0.08), rgba(8, 12, 26, 1));
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .move-num {
+            color: var(--muted);
+            margin-right: 2px;
+        }
+
+        .move-white,
+        .move-black {
+            margin-right: 8px;
+        }
+
+        .move-current {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .keyline {
+            height: 1px;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0.04), rgba(79, 224, 195, 0.4), rgba(255, 255, 255, 0.04));
+            margin: 4px 0 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app"> <!-- Left: Board -->
+        <div class="board-panel">
+            <div class="panel-title">Openings Board</div>
+            <div class="board-wrapper">
+                <div id="board" class="board"></div>
+            </div>
+            <div class="tag"> <span class="tag-dot"></span> <span id="statusTag">Idle · Start position</span> </div>
+        </div> <!-- Right: Controls & Moves -->
+        <div class="control-panel">
+            <div class="control-row"> <label for="openingSelect">Opening:</label>
+                <select id="openingSelect">
+                    <optgroup label="1.e4 — Open Games (…e5)">
+                        <option value="ruy_lopez">Ruy Lopez</option>
+                        <option value="italian">Italian Game</option>
+                        <option value="two_knights">Two Knights Defense</option>
+                        <option value="scotch">Scotch Game</option>
+                        <option value="four_knights">Four Knights Game</option>
+                        <option value="vienna">Vienna Game</option>
+                        <option value="petrov">Petrov Defense</option>
+                        <option value="philidor">Philidor Defense</option>
+                    </optgroup>
+
+                    <optgroup label="1.e4 — Semi-Open (…c5/e6/c6/d6 etc.)">
+                        <option value="sicilian_najdorf">Sicilian: Najdorf</option>
+                        <option value="sicilian_dragon">Sicilian: Dragon</option>
+                        <option value="sicilian_acc_dragon">Sicilian: Accelerated Dragon</option>
+                        <option value="sicilian_classical">Sicilian: Classical</option>
+                        <option value="sicilian_taimanov">Sicilian: Taimanov</option>
+                        <option value="sicilian_kan">Sicilian: Kan</option>
+                        <option value="sicilian_alapin">Alapin (Anti-Sicilian)</option>
+                        <option value="sicilian_grand_prix">Grand Prix Attack</option>
+
+                        <option value="french_advance">French: Advance</option>
+                        <option value="french_exchange">French: Exchange</option>
+                        <option value="french_tarrasch">French: Tarrasch</option>
+
+                        <option value="caro_advance">Caro-Kann: Advance</option>
+                        <option value="caro_classical">Caro-Kann: Classical</option>
+                        <option value="caro_panov">Caro-Kann: Panov Attack</option>
+
+                        <option value="scandinavian">Scandinavian Defense</option>
+                        <option value="alekhine">Alekhine's Defense</option>
+                        <option value="pirc">Pirc Defense</option>
+                        <option value="modern">Modern Defense</option>
+                    </optgroup>
+
+                    <optgroup label="1.d4 — Queen's Gambit & Slav">
+                        <option value="qg_declined">Queen's Gambit Declined</option>
+                        <option value="qg_accepted">Queen's Gambit Accepted</option>
+                        <option value="slav">Slav Defense</option>
+                        <option value="semi_slav">Semi-Slav Defense</option>
+                        <option value="tarrasch_qgd">Tarrasch Defense (QGD)</option>
+                        <option value="catalan">Catalan Opening</option>
+                    </optgroup>
+
+                    <optgroup label="1.d4 — Indian Defenses (…Nf6)">
+                        <option value="kings_indian">King's Indian Defense</option>
+                        <option value="grunfeld">Grünfeld Defense</option>
+                        <option value="nimzo_indian">Nimzo-Indian Defense</option>
+                        <option value="queens_indian">Queen's Indian Defense</option>
+                        <option value="bogo_indian">Bogo-Indian Defense</option>
+                        <option value="benoni">Benoni Defense</option>
+                        <option value="benko">Benko Gambit</option>
+                        <option value="budapest">Budapest Gambit</option>
+                    </optgroup>
+
+                    <optgroup label="Systems (Solid & common)">
+                        <option value="london">London System</option>
+                        <option value="colle">Colle System</option>
+                        <option value="torre">Torre Attack</option>
+                        <option value="kings_indian_attack">King's Indian Attack</option>
+                    </optgroup>
+
+                    <optgroup label="Flank Openings">
+                        <option value="english">English Opening</option>
+                        <option value="reti">Réti Opening</option>
+                        <option value="birds">Bird Opening (1.f4)</option>
+                        <option value="larsen">Larsen Opening (1.b3)</option>
+                    </optgroup>
+
+                    <optgroup label="Gambits (quick tactical lines)">
+                        <option value="kings_gambit">King's Gambit</option>
+                        <option value="evans_gambit">Evans Gambit</option>
+                        <option value="danish_gambit">Danish Gambit</option>
+                        <option value="goring_gambit">Göring Gambit</option>
+                        <option value="scotch_gambit">Scotch Gambit</option>
+                        <option value="smith_morra">Smith-Morra Gambit</option>
+                        <option value="blackmar_diemer">Blackmar–Diemer Gambit</option>
+                        <option value="latvian">Latvian Gambit</option>
+                        <option value="englund">Englund Gambit</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="control-row" style="margin-top: 4px;"> <button id="btnPlay" class="btn">▶ Play All</button>
+                <button id="btnStep" class="btn btn-secondary">➜ Next Move</button> <button id="btnReset"
+                    class="btn btn-danger">⟳ Reset</button>
+                <div class="speed-slider-wrap"> <label for="speedRange">Speed</label> <input id="speedRange"
+                        type="range" min="300" max="2000" step="100" value="900" /> </div>
+            </div>
+            <div class="keyline"></div>
+            <div class="moves-panel">
+                <div class="moves-header">
+                    <div class="moves-title">Move List</div>
+                    <div id="metaOpeningName" style="font-size: 12px; color: var(--accent);"></div>
+                </div>
+                <div class="moves-body" id="movesBody"> Select an opening and click “Play All” or “Next Move” to begin.
+                </div>
+                <div class="meta-row">
+                    <div id="metaInfo">Moves played: 0</div>
+                    <div id="metaSide">Side to move: White</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // -------------------------
+        // Simple board engine (no chess.js)
+        // -------------------------
+
+        // Pieces as letters: white uppercase, black lowercase
+        // p/r/n/b/q/k, P/R/N/B/Q/K
+        const START_POSITION = {
+            // Black
+            a8: "r", b8: "n", c8: "b", d8: "q", e8: "k", f8: "b", g8: "n", h8: "r",
+            a7: "p", b7: "p", c7: "p", d7: "p", e7: "p", f7: "p", g7: "p", h7: "p",
+            // White
+            a2: "P", b2: "P", c2: "P", d2: "P", e2: "P", f2: "P", g2: "P", h2: "P",
+            a1: "R", b1: "N", c1: "B", d1: "Q", e1: "K", f1: "B", g1: "N", h1: "R"
+        };
+
+        const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+        const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
+
+        const pieceToChar = {
+            p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
+            P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔"
+        };
+
+        // ----------------------------------------------------
+        // OPENINGS DATABASE
+        // Notes:
+        // - "san" is just for display.
+        // - "moves" are coordinate moves for your simple engine.
+        // - Castling uses: { castle:"O-O" } or { castle:"O-O-O" }
+        // ----------------------------------------------------
+        const openings = {
+            // -------------------------
+            // 1.e4 Open Games (…e5)
+            // -------------------------
+            ruy_lopez: {
+                name: "Ruy Lopez",
+                eco: "C60",
+                san: ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "Nf6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "f1", to: "b5" }, { from: "a7", to: "a6" },
+                    { from: "b5", to: "a4" }, { from: "g8", to: "f6" }
+                ]
+            },
+            italian: {
+                name: "Italian Game",
+                eco: "C50",
+                san: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "c3", "Nf6", "d4", "exd4", "cxd4", "Bb4+"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "f1", to: "c4" }, { from: "f8", to: "c5" },
+                    { from: "c2", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "d2", to: "d4" }, { from: "e5", to: "d4" }, // exd4
+                    { from: "c3", to: "d4" }, { from: "c5", to: "b4" }  // cxd4, Bb4+
+                ]
+            },
+            two_knights: {
+                name: "Two Knights Defense",
+                eco: "C55",
+                san: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "Ng5", "d5", "exd5", "Na5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "f1", to: "c4" }, { from: "g8", to: "f6" },
+                    { from: "f3", to: "g5" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "d5" }, { from: "c6", to: "a5" }
+                ]
+            },
+            scotch: {
+                name: "Scotch Game",
+                eco: "C45",
+                san: ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nf6", "Nc3", "Bb4"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "e5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "f8", to: "b4" }
+                ]
+            },
+            four_knights: {
+                name: "Four Knights Game",
+                eco: "C47",
+                san: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "Bb5", "Bb4", "O-O", "O-O"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "f1", to: "b5" }, { from: "f8", to: "b4" },
+                    { castle: "O-O" }, { castle: "O-O" }
+                ]
+            },
+            vienna: {
+                name: "Vienna Game",
+                eco: "C25",
+                san: ["e4", "e5", "Nc3", "Nf6", "f4", "d5", "fxe5", "Nxe4"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "f2", to: "f4" }, { from: "d7", to: "d5" },
+                    { from: "f4", to: "e5" }, { from: "f6", to: "e4" }
+                ]
+            },
+            petrov: {
+                name: "Petrov Defense",
+                eco: "C42",
+                san: ["e4", "e5", "Nf3", "Nf6", "Nxe5", "d6", "Nf3", "Nxe4", "d4", "d5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "f3", to: "e5" }, { from: "d7", to: "d6" },
+                    { from: "e5", to: "f3" }, { from: "f6", to: "e4" },
+                    { from: "d2", to: "d4" }, { from: "d6", to: "d5" }
+                ]
+            },
+            philidor: {
+                name: "Philidor Defense",
+                eco: "C41",
+                san: ["e4", "e5", "Nf3", "d6", "d4", "Nd7", "Nc3", "Ngf6", "Bc4", "Be7"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d6" },
+                    { from: "d2", to: "d4" }, { from: "b8", to: "d7" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "f1", to: "c4" }, { from: "f8", to: "e7" }
+                ]
+            },
+
+            // -------------------------
+            // Gambits (e4/e5)
+            // -------------------------
+            kings_gambit: {
+                name: "King's Gambit",
+                eco: "C30",
+                san: ["e4", "e5", "f4", "exf4", "Nf3", "g5", "h4", "g4", "Ne5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "f2", to: "f4" }, { from: "e5", to: "f4" },
+                    { from: "g1", to: "f3" }, { from: "g7", to: "g5" },
+                    { from: "h2", to: "h4" }, { from: "g5", to: "g4" },
+                    { from: "f3", to: "e5" }
+                ]
+            },
+            evans_gambit: {
+                name: "Evans Gambit",
+                eco: "C51",
+                san: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "b4", "Bxb4", "c3", "Ba5", "d4"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "f1", to: "c4" }, { from: "f8", to: "c5" },
+                    { from: "b2", to: "b4" }, { from: "c5", to: "b4" },
+                    { from: "c2", to: "c3" }, { from: "b4", to: "a5" },
+                    { from: "d2", to: "d4" }
+                ]
+            },
+            danish_gambit: {
+                name: "Danish Gambit",
+                eco: "C21",
+                san: ["e4", "e5", "d4", "exd4", "c3", "dxc3", "Bc4", "cxb2", "Bxb2"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "d2", to: "d4" }, { from: "e5", to: "d4" },
+                    { from: "c2", to: "c3" }, { from: "d4", to: "c3" },
+                    { from: "f1", to: "c4" }, { from: "c3", to: "b2" },
+                    { from: "c1", to: "b2" }
+                ]
+            },
+            goring_gambit: {
+                name: "Göring Gambit",
+                eco: "C44",
+                san: ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "c3", "dxc3", "Bc4"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "e5", to: "d4" },
+                    { from: "c2", to: "c3" }, { from: "d4", to: "c3" },
+                    { from: "f1", to: "c4" }
+                ]
+            },
+            scotch_gambit: {
+                name: "Scotch Gambit",
+                eco: "C44",
+                san: ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Bc4", "Bc5", "c3", "Nf6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "e5", to: "d4" },
+                    { from: "f1", to: "c4" }, { from: "f8", to: "c5" },
+                    { from: "c2", to: "c3" }, { from: "g8", to: "f6" }
+                ]
+            },
+            latvian: {
+                name: "Latvian Gambit",
+                eco: "C40",
+                san: ["e4", "e5", "Nf3", "f5", "Nxe5", "Qf6", "d4", "d6", "Nc4"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e5" },
+                    { from: "g1", to: "f3" }, { from: "f7", to: "f5" },
+                    { from: "f3", to: "e5" }, { from: "d8", to: "f6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d6" },
+                    { from: "e5", to: "c4" }
+                ]
+            },
+
+            // -------------------------
+            // 1.e4 Semi-open defenses
+            // -------------------------
+            sicilian_najdorf: {
+                name: "Sicilian Defence: Najdorf",
+                eco: "B90",
+                san: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6", "Be2", "e5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "a7", to: "a6" },
+                    { from: "f1", to: "e2" }, { from: "e7", to: "e5" }
+                ]
+            },
+            sicilian_dragon: {
+                name: "Sicilian: Dragon",
+                eco: "B70",
+                san: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "g6", "Be3", "Bg7"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "g7", to: "g6" },
+                    { from: "c1", to: "e3" }, { from: "f8", to: "g7" }
+                ]
+            },
+            sicilian_acc_dragon: {
+                name: "Sicilian: Accelerated Dragon",
+                eco: "B28",
+                san: ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "g6", "Nc3", "Bg7", "Be3", "Nf6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "g7", to: "g6" },
+                    { from: "b1", to: "c3" }, { from: "f8", to: "g7" },
+                    { from: "c1", to: "e3" }, { from: "g8", to: "f6" }
+                ]
+            },
+            sicilian_classical: {
+                name: "Sicilian: Classical",
+                eco: "B56",
+                san: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nc6", "Nc3", "Nf6", "Be2", "e5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "b8", to: "c6" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "f1", to: "e2" }, { from: "e7", to: "e5" }
+                ]
+            },
+            sicilian_taimanov: {
+                name: "Sicilian: Taimanov",
+                eco: "B46",
+                san: ["e4", "c5", "Nf3", "e6", "d4", "cxd4", "Nxd4", "Nc6", "Nc3", "Qc7"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "e7", to: "e6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "b8", to: "c6" },
+                    { from: "b1", to: "c3" }, { from: "d8", to: "c7" }
+                ]
+            },
+            sicilian_kan: {
+                name: "Sicilian: Kan",
+                eco: "B41",
+                san: ["e4", "c5", "Nf3", "e6", "d4", "cxd4", "Nxd4", "a6", "Bd3", "Qc7"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "e7", to: "e6" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "f3", to: "d4" }, { from: "a7", to: "a6" },
+                    { from: "f1", to: "d3" }, { from: "d8", to: "c7" }
+                ]
+            },
+            sicilian_alapin: {
+                name: "Alapin (Anti-Sicilian)",
+                eco: "B22",
+                san: ["e4", "c5", "c3", "d5", "exd5", "Qxd5", "d4", "Nf6", "Nf3", "e6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "c2", to: "c3" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "d5" }, { from: "d8", to: "d5" },
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "g1", to: "f3" }, { from: "e7", to: "e6" }
+                ]
+            },
+            sicilian_grand_prix: {
+                name: "Grand Prix Attack",
+                eco: "B23",
+                san: ["e4", "c5", "Nc3", "Nc6", "f4", "g6", "Nf3", "Bg7", "Bb5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "b1", to: "c3" }, { from: "b8", to: "c6" },
+                    { from: "f2", to: "f4" }, { from: "g7", to: "g6" },
+                    { from: "g1", to: "f3" }, { from: "f8", to: "g7" },
+                    { from: "f1", to: "b5" }
+                ]
+            },
+
+            french_advance: {
+                name: "French Defence: Advance",
+                eco: "C02",
+                san: ["e4", "e6", "d4", "d5", "e5", "c5", "c3", "Nc6", "Nf3"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "e5" }, { from: "c7", to: "c5" },
+                    { from: "c2", to: "c3" }, { from: "b8", to: "c6" },
+                    { from: "g1", to: "f3" }
+                ]
+            },
+            french_exchange: {
+                name: "French: Exchange Variation",
+                eco: "C01",
+                san: ["e4", "e6", "d4", "d5", "exd5", "exd5", "Bd3", "Bd6", "Nf3", "Nf6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "d5" }, { from: "e6", to: "d5" },
+                    { from: "f1", to: "d3" }, { from: "f8", to: "d6" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" }
+                ]
+            },
+            french_tarrasch: {
+                name: "French: Tarrasch",
+                eco: "C03",
+                san: ["e4", "e6", "d4", "d5", "Nd2", "c5", "Ngf3", "Nc6", "Bb5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "e7", to: "e6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "b1", to: "d2" }, { from: "c7", to: "c5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "f1", to: "b5" }
+                ]
+            },
+
+            caro_advance: {
+                name: "Caro-Kann Defence: Advance",
+                eco: "B12",
+                san: ["e4", "c6", "d4", "d5", "e5", "Bf5", "Nf3", "e6", "Be2", "c5"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "e5" }, { from: "c8", to: "f5" },
+                    { from: "g1", to: "f3" }, { from: "e7", to: "e6" },
+                    { from: "f1", to: "e2" }, { from: "c6", to: "c5" }
+                ]
+            },
+            caro_classical: {
+                name: "Caro-Kann: Classical",
+                eco: "B18",
+                san: ["e4", "c6", "d4", "d5", "Nc3", "dxe4", "Nxe4", "Bf5", "Ng3", "Bg6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "b1", to: "c3" }, { from: "d5", to: "e4" },
+                    { from: "c3", to: "e4" }, { from: "c8", to: "f5" },
+                    { from: "e4", to: "g3" }, { from: "f5", to: "g6" }
+                ]
+            },
+            caro_panov: {
+                name: "Caro-Kann: Panov Attack",
+                eco: "B14",
+                san: ["e4", "c6", "d4", "d5", "exd5", "cxd5", "c4", "Nf6", "Nc3", "e6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c6" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "d5" }, { from: "c6", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "e7", to: "e6" }
+                ]
+            },
+
+            scandinavian: {
+                name: "Scandinavian Defence",
+                eco: "B01",
+                san: ["e4", "d5", "exd5", "Qxd5", "Nc3", "Qa5", "d4", "c6", "Nf3"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "d7", to: "d5" },
+                    { from: "e4", to: "d5" }, { from: "d8", to: "d5" },
+                    { from: "b1", to: "c3" }, { from: "d5", to: "a5" },
+                    { from: "d2", to: "d4" }, { from: "c7", to: "c6" },
+                    { from: "g1", to: "f3" }
+                ]
+            },
+
+            pirc: {
+                name: "Pirc Defense",
+                eco: "B07",
+                san: ["e4", "d6", "d4", "Nf6", "Nc3", "g6", "Nf3", "Bg7", "Be2", "O-O"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "d7", to: "d6" },
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "g7", to: "g6" },
+                    { from: "g1", to: "f3" }, { from: "f8", to: "g7" },
+                    { from: "f1", to: "e2" }, { castle: "O-O" }
+                ]
+            },
+            modern: {
+                name: "Modern Defense",
+                eco: "B06",
+                san: ["e4", "g6", "d4", "Bg7", "Nc3", "d6", "Nf3", "Nf6", "Be2", "O-O"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "g7", to: "g6" },
+                    { from: "d2", to: "d4" }, { from: "f8", to: "g7" },
+                    { from: "b1", to: "c3" }, { from: "d7", to: "d6" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "f1", to: "e2" }, { castle: "O-O" }
+                ]
+            },
+            alekhine: {
+                name: "Alekhine's Defense",
+                eco: "B02",
+                san: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "Nf3", "Bg4", "Be2", "e6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "g8", to: "f6" },
+                    { from: "e4", to: "e5" }, { from: "f6", to: "d5" },
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d6" },
+                    { from: "g1", to: "f3" }, { from: "c8", to: "g4" },
+                    { from: "f1", to: "e2" }, { from: "e7", to: "e6" }
+                ]
+            },
+
+            // -------------------------
+            // Sicilian gambit
+            // -------------------------
+            smith_morra: {
+                name: "Smith-Morra Gambit",
+                eco: "B21",
+                san: ["e4", "c5", "d4", "cxd4", "c3", "dxc3", "Nxc3", "Nc6", "Nf3", "d6"],
+                moves: [
+                    { from: "e2", to: "e4" }, { from: "c7", to: "c5" },
+                    { from: "d2", to: "d4" }, { from: "c5", to: "d4" },
+                    { from: "c2", to: "c3" }, { from: "d4", to: "c3" },
+                    { from: "b1", to: "c3" }, { from: "b8", to: "c6" },
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d6" }
+                ]
+            },
+
+            // -------------------------
+            // 1.d4 Closed / Indian
+            // -------------------------
+            qg_declined: {
+                name: "Queen's Gambit Declined",
+                eco: "D30",
+                san: ["d4", "d5", "c4", "e6", "Nc3", "Nf6", "Bg5", "Be7", "e3", "Nbd7"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "c1", to: "g5" }, { from: "f8", to: "e7" },
+                    { from: "e2", to: "e3" }, { from: "b8", to: "d7" }
+                ]
+            },
+            qg_accepted: {
+                name: "Queen's Gambit Accepted",
+                eco: "D20",
+                san: ["d4", "d5", "c4", "dxc4", "Nf3", "Nf6", "e3", "e6", "Bxc4", "c5"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "d5", to: "c4" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "e2", to: "e3" }, { from: "e7", to: "e6" },
+                    { from: "f1", to: "c4" }, { from: "c7", to: "c5" }
+                ]
+            },
+            slav: {
+                name: "Slav Defense",
+                eco: "D10",
+                san: ["d4", "d5", "c4", "c6", "Nf3", "Nf6", "Nc3", "dxc4", "a4", "Bf5"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "c7", to: "c6" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "d5", to: "c4" },
+                    { from: "a2", to: "a4" }, { from: "c8", to: "f5" }
+                ]
+            },
+            semi_slav: {
+                name: "Semi-Slav Defense",
+                eco: "D45",
+                san: ["d4", "d5", "c4", "c6", "Nf3", "Nf6", "Nc3", "e6", "Bg5", "dxc4"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "c7", to: "c6" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "b1", to: "c3" }, { from: "e7", to: "e6" },
+                    { from: "c1", to: "g5" }, { from: "d5", to: "c4" }
+                ]
+            },
+            tarrasch_qgd: {
+                name: "Tarrasch Defense (QGD)",
+                eco: "D32",
+                san: ["d4", "d5", "c4", "e6", "Nc3", "c5", "cxd5", "exd5", "Nf3", "Nc6"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "b1", to: "c3" }, { from: "c7", to: "c5" },
+                    { from: "c4", to: "d5" }, { from: "e6", to: "d5" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" }
+                ]
+            },
+            catalan: {
+                name: "Catalan Opening",
+                eco: "E01",
+                san: ["d4", "Nf6", "c4", "e6", "g3", "d5", "Bg2", "Be7", "Nf3", "O-O"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "g2", to: "g3" }, { from: "d7", to: "d5" },
+                    { from: "f1", to: "g2" }, { from: "f8", to: "e7" },
+                    { from: "g1", to: "f3" }, { castle: "O-O" }
+                ]
+            },
+
+            // Indians
+            kings_indian: {
+                name: "King's Indian Defence",
+                eco: "E60",
+                san: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "e4", "d6", "Nf3", "O-O", "Be2", "e5"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "g7", to: "g6" },
+                    { from: "b1", to: "c3" }, { from: "f8", to: "g7" },
+                    { from: "e2", to: "e4" }, { from: "d7", to: "d6" },
+                    { from: "g1", to: "f3" }, { castle: "O-O" },
+                    { from: "f1", to: "e2" }, { from: "e7", to: "e5" }
+                ]
+            },
+            grunfeld: {
+                name: "Grünfeld Defense",
+                eco: "D70",
+                san: ["d4", "Nf6", "c4", "g6", "Nc3", "d5", "cxd5", "Nxd5", "e4", "Nxc3"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "g7", to: "g6" },
+                    { from: "b1", to: "c3" }, { from: "d7", to: "d5" },
+                    { from: "c4", to: "d5" }, { from: "f6", to: "d5" },
+                    { from: "e2", to: "e4" }, { from: "d5", to: "c3" }
+                ]
+            },
+            nimzo_indian: {
+                name: "Nimzo-Indian Defence",
+                eco: "E20",
+                san: ["d4", "Nf6", "c4", "e6", "Nc3", "Bb4", "Qc2", "O-O", "a3", "Bxc3+", "Qxc3"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "b1", to: "c3" }, { from: "f8", to: "b4" },
+                    { from: "d1", to: "c2" }, { castle: "O-O" },
+                    { from: "a2", to: "a3" }, { from: "b4", to: "c3" },
+                    { from: "c2", to: "c3" }
+                ]
+            },
+            queens_indian: {
+                name: "Queen's Indian Defence",
+                eco: "E12",
+                san: ["d4", "Nf6", "c4", "e6", "Nf3", "b6", "g3", "Bb7", "Bg2", "Be7"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "g1", to: "f3" }, { from: "b7", to: "b6" },
+                    { from: "g2", to: "g3" }, { from: "c8", to: "b7" },
+                    { from: "f1", to: "g2" }, { from: "f8", to: "e7" }
+                ]
+            },
+            bogo_indian: {
+                name: "Bogo-Indian Defense",
+                eco: "E11",
+                san: ["d4", "Nf6", "c4", "e6", "Nf3", "Bb4+", "Bd2", "Bxd2+", "Qxd2", "O-O"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "g1", to: "f3" }, { from: "f8", to: "b4" },
+                    { from: "c1", to: "d2" }, { from: "b4", to: "d2" },
+                    { from: "d1", to: "d2" }, { castle: "O-O" }
+                ]
+            },
+            benoni: {
+                name: "Benoni Defense",
+                eco: "A43",
+                san: ["d4", "Nf6", "c4", "c5", "d5", "e6", "Nc3", "exd5", "cxd5", "d6"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "c7", to: "c5" },
+                    { from: "d4", to: "d5" }, { from: "e7", to: "e6" },
+                    { from: "b1", to: "c3" }, { from: "e6", to: "d5" },
+                    { from: "c4", to: "d5" }, { from: "d7", to: "d6" }
+                ]
+            },
+
+            // d4 gambits
+            benko: {
+                name: "Benko Gambit",
+                eco: "A57",
+                san: ["d4", "Nf6", "c4", "c5", "d5", "b5", "cxb5", "a6", "bxa6", "Bxa6"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "c7", to: "c5" },
+                    { from: "d4", to: "d5" }, { from: "b7", to: "b5" },
+                    { from: "c4", to: "b5" }, { from: "a7", to: "a6" },
+                    { from: "b5", to: "a6" }, { from: "c8", to: "a6" }
+                ]
+            },
+            budapest: {
+                name: "Budapest Gambit",
+                eco: "A52",
+                san: ["d4", "Nf6", "c4", "e5", "dxe5", "Ng4", "Nf3", "Nc6", "Bf4", "Bb4+"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e5" },
+                    { from: "d4", to: "e5" }, { from: "f6", to: "g4" },
+                    { from: "g1", to: "f3" }, { from: "b8", to: "c6" },
+                    { from: "c1", to: "f4" }, { from: "f8", to: "b4" }
+                ]
+            },
+
+            // -------------------------
+            // Systems / Flank
+            // -------------------------
+            london: {
+                name: "London System",
+                eco: "D02",
+                san: ["d4", "d5", "Nf3", "Nf6", "Bf4", "e6", "e3", "c5", "c3", "Nc6"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "c1", to: "f4" }, { from: "e7", to: "e6" },
+                    { from: "e2", to: "e3" }, { from: "c7", to: "c5" },
+                    { from: "c2", to: "c3" }, { from: "b8", to: "c6" }
+                ]
+            },
+            colle: {
+                name: "Colle System",
+                eco: "D04",
+                san: ["d4", "d5", "Nf3", "Nf6", "e3", "e6", "Bd3", "c5", "O-O", "Nc6"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "g1", to: "f3" }, { from: "g8", to: "f6" },
+                    { from: "e2", to: "e3" }, { from: "e7", to: "e6" },
+                    { from: "f1", to: "d3" }, { from: "c7", to: "c5" },
+                    { castle: "O-O" }, { from: "b8", to: "c6" }
+                ]
+            },
+            torre: {
+                name: "Torre Attack",
+                eco: "A46",
+                san: ["d4", "Nf6", "Nf3", "e6", "Bg5", "d5", "e3", "Be7", "Bd3", "O-O"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "g8", to: "f6" },
+                    { from: "g1", to: "f3" }, { from: "e7", to: "e6" },
+                    { from: "c1", to: "g5" }, { from: "d7", to: "d5" },
+                    { from: "e2", to: "e3" }, { from: "f8", to: "e7" },
+                    { from: "f1", to: "d3" }, { castle: "O-O" }
+                ]
+            },
+
+            english: {
+                name: "English Opening",
+                eco: "A25",
+                san: ["c4", "e5", "Nc3", "Nf6", "g3", "d5", "cxd5", "Nxd5", "Bg2", "Nb6"],
+                moves: [
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e5" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "g2", to: "g3" }, { from: "d7", to: "d5" },
+                    { from: "c4", to: "d5" }, { from: "f6", to: "d5" },
+                    { from: "f1", to: "g2" }, { from: "d5", to: "b6" }
+                ]
+            },
+            reti: {
+                name: "Réti Opening",
+                eco: "A07",
+                san: ["Nf3", "d5", "c4", "e6", "g3", "Nf6", "Bg2", "Be7", "O-O", "O-O"],
+                moves: [
+                    { from: "g1", to: "f3" }, { from: "d7", to: "d5" },
+                    { from: "c2", to: "c4" }, { from: "e7", to: "e6" },
+                    { from: "g2", to: "g3" }, { from: "g8", to: "f6" },
+                    { from: "f1", to: "g2" }, { from: "f8", to: "e7" },
+                    { castle: "O-O" }, { castle: "O-O" }
+                ]
+            },
+            birds: {
+                name: "Bird Opening",
+                eco: "A02",
+                san: ["f4", "d5", "Nf3", "g6", "e3", "Bg7", "Be2", "Nf6", "O-O", "O-O"],
+                moves: [
+                    { from: "f2", to: "f4" }, { from: "d7", to: "d5" },
+                    { from: "g1", to: "f3" }, { from: "g7", to: "g6" },
+                    { from: "e2", to: "e3" }, { from: "f8", to: "g7" },
+                    { from: "f1", to: "e2" }, { from: "g8", to: "f6" },
+                    { castle: "O-O" }, { castle: "O-O" }
+                ]
+            },
+            larsen: {
+                name: "Larsen Opening (1.b3)",
+                eco: "A01",
+                san: ["b3", "e5", "Bb2", "Nc6", "e3", "Nf6", "Bb5", "Bd6", "Nf3"],
+                moves: [
+                    { from: "b2", to: "b3" }, { from: "e7", to: "e5" },
+                    { from: "c1", to: "b2" }, { from: "b8", to: "c6" },
+                    { from: "e2", to: "e3" }, { from: "g8", to: "f6" },
+                    { from: "b2", to: "b5" }, { from: "f8", to: "d6" },
+                    { from: "g1", to: "f3" }
+                ]
+            },
+
+            // -------------------------
+            // Other gambits you asked for
+            // -------------------------
+            blackmar_diemer: {
+                name: "Blackmar–Diemer Gambit",
+                eco: "D00",
+                san: ["d4", "d5", "e4", "dxe4", "Nc3", "Nf6", "f3", "exf3", "Nxf3"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "d7", to: "d5" },
+                    { from: "e2", to: "e4" }, { from: "d5", to: "e4" },
+                    { from: "b1", to: "c3" }, { from: "g8", to: "f6" },
+                    { from: "f2", to: "f3" }, { from: "e4", to: "f3" },
+                    { from: "g1", to: "f3" }
+                ]
+            },
+            englund: {
+                name: "Englund Gambit",
+                eco: "A40",
+                san: ["d4", "e5", "dxe5", "Nc6", "Nf3", "Qe7", "Bf4", "Qb4+", "Bd2"],
+                moves: [
+                    { from: "d2", to: "d4" }, { from: "e7", to: "e5" },
+                    { from: "d4", to: "e5" }, { from: "b8", to: "c6" },
+                    { from: "g1", to: "f3" }, { from: "d8", to: "e7" },
+                    { from: "c1", to: "f4" }, { from: "e7", to: "b4" },
+                    { from: "f4", to: "d2" }
+                ]
+            }
+        };
+
+        // -------------------------
+        // DOM wiring
+        // -------------------------
+        const boardEl = document.getElementById("board");
+        const statusTag = document.getElementById("statusTag");
+        const openingSelect = document.getElementById("openingSelect");
+        const btnPlay = document.getElementById("btnPlay");
+        const btnStep = document.getElementById("btnStep");
+        const btnReset = document.getElementById("btnReset");
+        const speedRange = document.getElementById("speedRange");
+        const movesBody = document.getElementById("movesBody");
+        const metaInfo = document.getElementById("metaInfo");
+        const metaSide = document.getElementById("metaSide");
+        const metaOpeningName = document.getElementById("metaOpeningName");
+
+        let board = {};
+        let currentOpeningKey = openingSelect.value;
+        let currentIndex = 0; // ply played
+        let playInterval = null;
+        let lastMoveSquares = null; // [from, to]
+
+        function cloneStart() {
+            return { ...START_POSITION };
+        }
+
+        function squareColor(fileIndex, rankIndex) {
+            return (fileIndex + rankIndex) % 2 === 0 ? "light" : "dark";
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = "";
+            for (let rIndex = 0; rIndex < RANKS.length; rIndex++) {
+                for (let fIndex = 0; fIndex < FILES.length; fIndex++) {
+                    const sq = FILES[fIndex] + RANKS[rIndex];
+                    const piece = board[sq];
+                    const div = document.createElement("div");
+                    div.classList.add("square", squareColor(fIndex, rIndex));
+                    div.dataset.square = sq;
+
+                    if (lastMoveSquares && (sq === lastMoveSquares[0] || sq === lastMoveSquares[1])) {
+                        div.classList.add("highlight");
+                    }
+
+                    if (piece) {
+                        div.textContent = pieceToChar[piece];
+                    }
+
+                    if (RANKS[rIndex] === 1) {
+                        const cf = document.createElement("div");
+                        cf.classList.add("coord", "coord-file");
+                        cf.textContent = FILES[fIndex];
+                        div.appendChild(cf);
+                    }
+                    if (FILES[fIndex] === "a") {
+                        const cr = document.createElement("div");
+                        cr.classList.add("coord", "coord-rank");
+                        cr.textContent = RANKS[rIndex];
+                        div.appendChild(cr);
+                    }
+
+                    boardEl.appendChild(div);
+                }
+            }
+        }
+
+        function clearPlayInterval() {
+            if (playInterval !== null) {
+                clearInterval(playInterval);
+                playInterval = null;
+                btnPlay.textContent = "▶ Play All";
+            }
+        }
+
+        function getOpeningSafe(key) {
+            if (openings[key]) return openings[key];
+            const keys = Object.keys(openings);
+            return openings[keys[0]];
+        }
+
+        function resetGameToStart() {
+            clearPlayInterval();
+            board = cloneStart();
+
+            currentOpeningKey = openingSelect.value;
+            if (!openings[currentOpeningKey]) {
+                const fallbackKey = Object.keys(openings)[0];
+                console.warn(`Opening key "${currentOpeningKey}" not found. Falling back to "${fallbackKey}".`);
+                currentOpeningKey = fallbackKey;
+                openingSelect.value = fallbackKey;
+            }
+
+            currentIndex = 0;
+            lastMoveSquares = null;
+
+            const opening = openings[currentOpeningKey];
+            statusTag.textContent = `Idle · ${opening.name}`;
+            metaOpeningName.textContent = opening.name;
+            updateMovesDisplay();
+            updateMeta();
+            renderBoard();
+        }
+
+        function updateMeta() {
+            metaInfo.textContent = `Moves played: ${currentIndex}`;
+            const side = currentIndex % 2 === 0 ? "White" : "Black";
+            metaSide.textContent = `Side to move: ${side}`;
+        }
+
+        function updateMovesDisplay() {
+            const opening = getOpeningSafe(currentOpeningKey);
+            const sanMoves = opening.san;
+            if (!sanMoves || sanMoves.length === 0) {
+                movesBody.textContent = "No moves defined for this opening.";
+                return;
+            }
+            let html = "";
+            for (let i = 0; i < sanMoves.length; i += 2) {
+                const moveNumber = Math.floor(i / 2) + 1;
+                const whiteMove = sanMoves[i] || "";
+                const blackMove = sanMoves[i + 1] || "";
+                const isWhiteCurrent = i === currentIndex - 1;
+                const isBlackCurrent = i + 1 === currentIndex - 1;
+
+                html += `<span class="move-num">${moveNumber}.</span>`;
+                if (whiteMove) {
+                    html += `<span class="move-white ${isWhiteCurrent ? "move-current" : ""}">${whiteMove}</span>`;
+                }
+                if (blackMove) {
+                    html += `<span class="move-black ${isBlackCurrent ? "move-current" : ""}">${blackMove}</span>`;
+                }
+            }
+            movesBody.innerHTML = html;
+        }
+
+        // Castling + normal move application
+        function applyMove(move) {
+            if (move.castle) {
+                const isWhiteToMove = currentIndex % 2 === 0;
+
+                if (move.castle === "O-O") {
+                    if (isWhiteToMove) {
+                        board["g1"] = board["e1"]; delete board["e1"];
+                        board["f1"] = board["h1"]; delete board["h1"];
+                        lastMoveSquares = ["e1", "g1"];
+                    } else {
+                        board["g8"] = board["e8"]; delete board["e8"];
+                        board["f8"] = board["h8"]; delete board["h8"];
+                        lastMoveSquares = ["e8", "g8"];
+                    }
+                    return;
+                }
+
+                if (move.castle === "O-O-O") {
+                    if (isWhiteToMove) {
+                        board["c1"] = board["e1"]; delete board["e1"];
+                        board["d1"] = board["a1"]; delete board["a1"];
+                        lastMoveSquares = ["e1", "c1"];
+                    } else {
+                        board["c8"] = board["e8"]; delete board["e8"];
+                        board["d8"] = board["a8"]; delete board["a8"];
+                        lastMoveSquares = ["e8", "c8"];
+                    }
+                    return;
+                }
+            }
+
+            const piece = board[move.from];
+            if (!piece) console.warn("No piece on", move.from, "for move", move);
+            delete board[move.from];
+            board[move.to] = piece;
+            lastMoveSquares = [move.from, move.to];
+        }
+
+        function stepOneMove() {
+            const opening = getOpeningSafe(currentOpeningKey);
+            if (!opening || currentIndex >= opening.moves.length) {
+                clearPlayInterval();
+                statusTag.textContent = `Completed · ${opening ? opening.name : ""}`;
+                return;
+            }
+            const move = opening.moves[currentIndex];
+            applyMove(move);
+            currentIndex += 1;
+            statusTag.textContent = `Playing ${opening.name} · Move ${currentIndex}/${opening.moves.length}`;
+            updateMovesDisplay();
+            updateMeta();
+            renderBoard();
+        }
+
+        function togglePlay() {
+            const opening = getOpeningSafe(currentOpeningKey);
+            if (!opening) return;
+
+            if (playInterval !== null) {
+                clearPlayInterval();
+                statusTag.textContent = `Paused · ${opening.name}`;
+                return;
+            }
+
+            if (currentIndex >= opening.moves.length) {
+                resetGameToStart();
+            }
+
+            const speed = Number(speedRange.value);
+            btnPlay.textContent = "⏸ Pause";
+            statusTag.textContent = `Playing ${opening.name} · Auto`;
+
+            playInterval = setInterval(() => {
+                if (currentIndex >= opening.moves.length) {
+                    clearPlayInterval();
+                    statusTag.textContent = `Completed · ${opening.name}`;
+                    return;
+                }
+                stepOneMove();
+            }, speed);
+        }
+
+        // Event listeners
+        openingSelect.addEventListener("change", resetGameToStart);
+        btnReset.addEventListener("click", resetGameToStart);
+        btnStep.addEventListener("click", () => {
+            clearPlayInterval();
+            stepOneMove();
+        });
+        btnPlay.addEventListener("click", togglePlay);
+        speedRange.addEventListener("input", () => {
+            if (playInterval !== null) {
+                clearPlayInterval();
+                togglePlay();
+            }
+        });
+
+        // Initial setup
+        resetGameToStart();
+    </script>
+</body>
+
+</html>
